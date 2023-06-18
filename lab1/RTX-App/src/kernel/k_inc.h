@@ -79,6 +79,13 @@ typedef struct tcb {
     U8          state;        /**< task state                                 */
 } TCB;
 
+typedef struct free_memory_block_t {
+    void* address;
+    size_t size;
+    struct free_memory_block_t* prev;
+    struct free_memory_block_t* next;
+} free_memory_block_t;
+
 /*
  *===========================================================================
  *                             GLOBAL VARIABLES 
