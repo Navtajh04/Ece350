@@ -79,10 +79,11 @@ typedef struct tcb {
     U8          state;        /**< task state                                 */
 } TCB;
 
-typedef struct {
+typedef struct free_memory_block_t {
     void* address;
-    free_memory_block_t* prev;
-    free_memory_block_t* next;
+    size_t size;
+    struct free_memory_block_t* prev;
+    struct free_memory_block_t* next;
 } free_memory_block_t;
 
 /*

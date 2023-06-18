@@ -114,7 +114,6 @@ U32 g_k_stacks[MAX_TASKS][KERN_STACK_SIZE >> 2] __attribute__((aligned(8)));
 //U32 g_p_stacks[MAX_TASKS][PROC_STACK_SIZE >> 2] __attribute__((aligned(8)));
 U32 g_p_stacks[NUM_TASKS][PROC_STACK_SIZE >> 2] __attribute__((aligned(8)));
 
-MemoryBlock* freeMemoryLists[27] = {NULL};
 /*
  *===========================================================================
  *                            FUNCTIONS
