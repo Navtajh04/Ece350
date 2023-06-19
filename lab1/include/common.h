@@ -83,9 +83,14 @@
 
 #define MIN_BLK_SIZE        32      /* minimum memory block size in bytes */
 #define MIN_BLK_SIZE_LOG2   5       /* log2(MIN_BLK_SIZE) */
+#define IRAM1_MAX_BLK_SIZE  4096    /* Total size of the IRAM1 user memory block */ 
+#define IRAM1_MAX_BLK_SIZE_LOG2 12  /* log2(IRAM1_MAX_BLK_SIZE)*/
+#define IRAM2_MAX_BLK_SIZE  32768   /* TOtal size od he IRAM2 memory block */
+#define IRAM2_MAX_BLK_SIZE_LOG2 15  /* log2(IRAM2_MAX_BLK_SIZE) */ 
 #define MAX_MPOOLS          2       /* maximum number of memory pools */
 #define MPID_IRAM1          0       /* IRAM1 memory pool ID */
 #define MPID_IRAM2          1       /* IRAM2 memory pool ID */
+#define ALLOCATED_BLK_META_SIZE 8
 
 /* Main Scheduling Algorithms */
 #define DEFAULT             0       /* preemptive priority scheduler, FCFS within each priority */

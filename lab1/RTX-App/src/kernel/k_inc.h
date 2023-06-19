@@ -80,8 +80,8 @@ typedef struct tcb {
 } TCB;
 
 typedef struct free_memory_block_t {
-    void* address;
     size_t size;
+    char padding[4];  
     struct free_memory_block_t* prev;
     struct free_memory_block_t* next;
 } free_memory_block_t;
