@@ -140,9 +140,9 @@ mpool_t k_mpool_create (int algo, U32 start, U32 end)
     }
     
     if ( start == RAM1_START) {
-        mpid = MPID_IRAM1
+        mpid = MPID_IRAM1;
         // Create the initial memory block
-        MemoryBlock* block = (MemoryBlock*) start;
+        free_memory_block_t* block = (free_memory_block_t*) start;
         block->size = end - start - ALLOCATED_BLK_META_SIZE;
         block->prev = NULL;
         block->next = NULL;
@@ -151,12 +151,12 @@ mpool_t k_mpool_create (int algo, U32 start, U32 end)
     } else if ( start == RAM2_START) {
         mpid = MPID_IRAM2;
         // add your own code
-        MemoryBlock* block = (MemoryBlock*) start;
+        free_memory_block_t* block = (free_memory_block_t*) start;
         block->size = start - end - ALLOCATED_BLK_META_SIZE;
         block->prev = NULL;
         block->next = NULL;
 
-        iram1FreeList[IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2 - 1] = block;
+        iram2FreeList[IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2 - 1] = block;
     } else {
         errno = EINVAL;
         return RTX_ERR;
