@@ -40,6 +40,7 @@
 
 #include "k_inc.h"
 #include "k_mem.h"
+#include "common.h"
 
 /*---------------------------------------------------------------------------
 The memory map of the OS image may look like the following:
@@ -114,6 +115,9 @@ U32 g_k_stacks[MAX_TASKS][KERN_STACK_SIZE >> 2] __attribute__((aligned(8)));
 //U32 g_p_stacks[MAX_TASKS][PROC_STACK_SIZE >> 2] __attribute__((aligned(8)));
 U32 g_p_stacks[NUM_TASKS][PROC_STACK_SIZE >> 2] __attribute__((aligned(8)));
 
+static free_memory_block_t* iram1FreeList[IRAM1_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2] = {NULL};
+static free_memory_block_t* iram2FreeList[IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2] = {NULL};
+
 /*
  *===========================================================================
  *                            FUNCTIONS
@@ -136,10 +140,23 @@ mpool_t k_mpool_create (int algo, U32 start, U32 end)
     }
     
     if ( start == RAM1_START) {
-        // add your own code
+        mpid = MPID_IRAM1
+        // Create the initial memory block
+        MemoryBlock* block = (MemoryBlock*) start;
+        block->size = end - start - ALLOCATED_BLK_META_SIZE;
+        block->prev = NULL;
+        block->next = NULL;
+
+        iram1FreeList[IRAM1_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2 - 1] = block;
     } else if ( start == RAM2_START) {
         mpid = MPID_IRAM2;
         // add your own code
+        MemoryBlock* block = (MemoryBlock*) start;
+        block->size = start - end - ALLOCATED_BLK_META_SIZE;
+        block->prev = NULL;
+        block->next = NULL;
+
+        iram1FreeList[IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2 - 1] = block;
     } else {
         errno = EINVAL;
         return RTX_ERR;
