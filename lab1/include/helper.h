@@ -17,5 +17,5 @@ unsigned int log_two_floor(unsigned int num);
  * 
  * @return unsigned int - the log base 2 of num
 */
-unsigned int log_two_ceil(unsigned int num)
+unsigned int log_two_ceil(unsigned int num);
 #endif /* RTX_APP_SRC_HELPER_INCLUDE_ */

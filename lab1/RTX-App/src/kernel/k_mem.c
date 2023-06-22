@@ -41,6 +41,7 @@
 #include "k_inc.h"
 #include "k_mem.h"
 #include "common.h"
+#include "helper.h"
 
 /*---------------------------------------------------------------------------
 The memory map of the OS image may look like the following:
@@ -102,21 +103,21 @@ The memory map of the OS image may look like the following:
  *===========================================================================
  */
 // kernel stack size, referred by startup_a9.s
-const U32 g_k_stack_size = KERN_STACK_SIZE;
+// const U32 g_k_stack_size = KERN_STACK_SIZE;
 // task proc space stack size in bytes, referred by system_a9.c
-const U32 g_p_stack_size = PROC_STACK_SIZE;
+// const U32 g_p_stack_size = PROC_STACK_SIZE;
 
 // task kernel stacks
-U32 g_k_stacks[MAX_TASKS][KERN_STACK_SIZE >> 2] __attribute__((aligned(8)));
+// U32 g_k_stacks[MAX_TASKS][KERN_STACK_SIZE >> 2] __attribute__((aligned(8)));
 
 // task process stack (i.e. user stack) for tasks in thread mode
 // remove this bug array in your lab2 code
 // the user stack should come from MPID_IRAM2 memory pool
 //U32 g_p_stacks[MAX_TASKS][PROC_STACK_SIZE >> 2] __attribute__((aligned(8)));
-U32 g_p_stacks[NUM_TASKS][PROC_STACK_SIZE >> 2] __attribute__((aligned(8)));
+//U32 g_p_stacks[NUM_TASKS][PROC_STACK_SIZE >> 2] __attribute__((aligned(8)));
 
-static free_memory_block_t* iram1FreeList[IRAM1_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2] = {NULL};
-static free_memory_block_t* iram2FreeList[IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2] = {NULL};
+static free_memory_block_t* iram1FreeList[IRAM1_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2];
+static free_memory_block_t* iram2FreeList[IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2];
 
 /*
  *===========================================================================
@@ -125,8 +126,7 @@ static free_memory_block_t* iram2FreeList[IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE
  */
 
 /* note list[n] is for blocks with order of n */
-mpool_t k_mpool_create (int algo, U32 start, U32 end)
-{
+mpool_t k_mpool_create (int algo, U32 start, U32 end){
     mpool_t mpid = MPID_IRAM1;
 
 #ifdef DEBUG_0
@@ -170,8 +170,65 @@ void *k_mpool_alloc (mpool_t mpid, size_t size)
 #ifdef DEBUG_0
     printf("k_mpool_alloc: mpid = %d, size = %d, 0x%x\r\n", mpid, size, size);
 #endif /* DEBUG_0 */
-    return ((void *) IRAM2_BASE);
-    //return NULL;
+    free_memory_block_t** freeList;
+    int maxBlkSizeLog2;
+
+    if (mpid == MPID_IRAM1) {
+        freeList = iram1FreeList;
+        maxBlkSizeLog2 = IRAM1_MAX_BLK_SIZE_LOG2;
+    } else if (mpid == MPID_IRAM2) {
+        freeList = iram2FreeList;
+        maxBlkSizeLog2 = IRAM2_MAX_BLK_SIZE_LOG2;
+    } else {
+        return NULL;  // Invalid memory pool ID
+    }
+
+     // Calculate the required block size
+    size_t blockSize = size + ALLOCATED_BLK_META_SIZE;  // Including size info and padding
+    blockSize = (blockSize + 7) & ~0x07;  // Align to 8 bytes
+
+    // Find the appropriate block size in the free list
+    int blkSizeLog2 = log_two_ceil(blockSize);
+    if (blkSizeLog2 < MIN_BLK_SIZE_LOG2) {
+        blkSizeLog2 = MIN_BLK_SIZE_LOG2;
+    } else if (blkSizeLog2 > maxBlkSizeLog2) {
+        return NULL;  // Requested size exceeds maximum block size
+    }
+
+    free_memory_block_t* block;
+    U8 i = blkSizeLog2;
+    while((block == NULL) && (i <= maxBlkSizeLog2)){
+        block = freeList[i];
+        ++i;
+    }
+
+    if(i > maxBlkSizeLog2){
+        // there was no memory block large enough that was free
+        return NULL;
+    }
+
+    while(i + MIN_BLK_SIZE_LOG2 > blkSizeLog2){
+        // keep splitting the current smallest suitable block into 2 buddies until it is blkSizeLog2 size
+        free_memory_block_t* buddy = (free_memory_block_t*)((char*)block + (block->size >> 1));
+        buddy->size = block->size >> 1;
+
+        block->size >>= 1;
+        // block->next = buddy;
+
+        // Remove the block from it's curret linked list
+        freeList[i] = block->next;
+        i--;
+
+        // Update the free list at the corresponding index
+        buddy->next = freeList[i];
+        buddy->prev = NULL;
+        if (freeList[i] != NULL) {
+            freeList[i]->prev = buddy;
+        }
+        freeList[i] = buddy;
+    }
+
+    return (void *)(block + ALLOCATED_BLK_META_SIZE);
 }
 
 int k_mpool_dealloc(mpool_t mpid, void *ptr)
