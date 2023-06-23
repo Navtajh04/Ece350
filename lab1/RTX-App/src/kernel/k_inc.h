@@ -81,7 +81,7 @@ typedef struct tcb {
 
 typedef struct free_memory_block_t {
     size_t size;
-    char padding[4];  
+    U32 freeFlag; 
     struct free_memory_block_t* prev;
     struct free_memory_block_t* next;
 } free_memory_block_t;

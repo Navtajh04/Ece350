@@ -144,6 +144,7 @@ mpool_t k_mpool_create (int algo, U32 start, U32 end){
         // Create the initial memory block
         free_memory_block_t* block = (free_memory_block_t*) start;
         block->size = end - start - ALLOCATED_BLK_META_SIZE;
+        block->freeFlag = 1;
         block->prev = NULL;
         block->next = NULL;
 
@@ -153,6 +154,7 @@ mpool_t k_mpool_create (int algo, U32 start, U32 end){
         // add your own code
         free_memory_block_t* block = (free_memory_block_t*) start;
         block->size = start - end - ALLOCATED_BLK_META_SIZE;
+        block->freeFlag = 1;
         block->prev = NULL;
         block->next = NULL;
 
@@ -180,7 +182,8 @@ void *k_mpool_alloc (mpool_t mpid, size_t size)
         freeList = iram2FreeList;
         maxBlkSizeLog2 = IRAM2_MAX_BLK_SIZE_LOG2;
     } else {
-        return NULL;  // Invalid memory pool ID
+        errno = EINVAL;
+        return RTX_ERR;
     }
 
      // Calculate the required block size
@@ -207,17 +210,17 @@ void *k_mpool_alloc (mpool_t mpid, size_t size)
         return NULL;
     }
 
+    // Remove the block from it's curret linked list
+    freeList[i] = block->next;
+
     while(i + MIN_BLK_SIZE_LOG2 > blkSizeLog2){
+        i--;
         // keep splitting the current smallest suitable block into 2 buddies until it is blkSizeLog2 size
         free_memory_block_t* buddy = (free_memory_block_t*)((char*)block + (block->size >> 1));
         buddy->size = block->size >> 1;
 
         block->size >>= 1;
         // block->next = buddy;
-
-        // Remove the block from it's curret linked list
-        freeList[i] = block->next;
-        i--;
 
         // Update the free list at the corresponding index
         buddy->next = freeList[i];
@@ -227,8 +230,9 @@ void *k_mpool_alloc (mpool_t mpid, size_t size)
         }
         freeList[i] = buddy;
     }
+    block->freeFlag = 0;
 
-    return (void *)(block + ALLOCATED_BLK_META_SIZE);
+    return (void *)((char *)block + ALLOCATED_BLK_META_SIZE);
 }
 
 int k_mpool_dealloc(mpool_t mpid, void *ptr)
@@ -236,7 +240,55 @@ int k_mpool_dealloc(mpool_t mpid, void *ptr)
 #ifdef DEBUG_0
     printf("k_mpool_dealloc: mpid = %d, ptr = 0x%x\r\n", mpid, ptr);
 #endif /* DEBUG_0 */
-    
+    free_memory_block_t** freeList;
+
+    if (mpid == MPID_IRAM1) {
+        if(ptr < RAM1_START || ptr > RAM1_END){
+            errno = EFAULT;
+            return RTX_ERR;
+        }
+        freeList = iram1FreeList;
+    } else if (mpid == MPID_IRAM2) {
+        if(ptr < RAM2_START || ptr > RAM2_END){
+            errno = EFAULT;
+            return RTX_ERR;
+        }
+        freeList = iram2FreeList;
+    } else {
+        errno = EINVAL 
+        return RTX_ERR;  // Invalid memory pool ID
+    }
+    free_memory_block_t* freedBlock = (free_memory_block_t *)(ptr - ALLOCATED_BLK_META_SIZE);
+    freedBlock->freeFlag = 1;
+    // Get the address of the binary buddy of the block
+    free_memory_block_t* buddy = (free_memory_block_t *)((char *)freedBlock ^ freedBlock->size);
+
+    U8 index = log_two_ceil(freedBlock->size);
+
+    // Keep coalescing until we reach a point where the binary buddy is not free
+    while(buddy->freeFlag){
+        // remove the buddy from the free block list it is currently in
+        free_memory_block_t* prevBlock = buddy->prev;
+        free_memory_block_t* nextBlock = buddy->next;
+        if(prevBlock != NULL){
+            prevBlock->next = nextBlock;
+        } else {
+            freeList[index] = nextBlock;
+        }
+        if(nextBlock != NULL){
+            nextBlock->prev = prevBlock;
+        }
+
+        // coalesce the two blocks
+        freedBlock->size <<= 1;
+        buddy = (free_memory_block_t *)((char *)freedBlock ^ freedBlock->size);
+        ++index;
+    }
+
+    freedBlock->freeFlag = 1;
+    freedBlock->next = freeList[index];
+    freeList[index] = freedBlock;
+
     return RTX_OK; 
 }
 
