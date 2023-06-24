@@ -175,6 +175,9 @@ void *k_mpool_alloc (mpool_t mpid, size_t size)
     free_memory_block_t** freeList;
     int maxBlkSizeLog2;
 
+    if(size == NULL){
+        return NULL;
+    }
     if (mpid == MPID_IRAM1) {
         freeList = iram1FreeList;
         maxBlkSizeLog2 = IRAM1_MAX_BLK_SIZE_LOG2;
@@ -242,6 +245,9 @@ int k_mpool_dealloc(mpool_t mpid, void *ptr)
 #endif /* DEBUG_0 */
     free_memory_block_t** freeList;
 
+    if(ptr == NULL){
+        return RTX_OK;
+    }
     if (mpid == MPID_IRAM1) {
         if(ptr < RAM1_START || ptr > RAM1_END){
             errno = EFAULT;
