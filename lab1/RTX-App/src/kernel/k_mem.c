@@ -255,7 +255,7 @@ int k_mpool_dealloc(mpool_t mpid, void *ptr)
         }
         freeList = iram2FreeList;
     } else {
-        errno = EINVAL 
+        errno = EINVAL;
         return RTX_ERR;  // Invalid memory pool ID
     }
     free_memory_block_t* freedBlock = (free_memory_block_t *)(ptr - ALLOCATED_BLK_META_SIZE);
@@ -281,11 +281,14 @@ int k_mpool_dealloc(mpool_t mpid, void *ptr)
 
         // coalesce the two blocks
         freedBlock->size <<= 1;
+        buddy->size <<= 1;
         buddy = (free_memory_block_t *)((char *)freedBlock ^ freedBlock->size);
         ++index;
     }
 
     freedBlock->freeFlag = 1;
+    // make sure freedblock starts at the address of the binary buddy that was at a lower part of memory
+    freedBlock = (free_memory_block_t *)((char *)freedBlock & ~(freedBlock->size >> 1));
     freedBlock->next = freeList[index];
     freeList[index] = freedBlock;
 
@@ -297,7 +300,38 @@ int k_mpool_dump (mpool_t mpid)
 #ifdef DEBUG_0
     printf("k_mpool_dump: mpid = %d\r\n", mpid);
 #endif /* DEBUG_0 */
-    
+    free_memory_block_t** freeList;
+    U8 listLen;
+
+    if (mpid == MPID_IRAM1) {
+        if(ptr < RAM1_START || ptr > RAM1_END){
+            errno = EFAULT;
+            return RTX_ERR;
+        }
+        freeList = iram1FreeList;
+        listLen = IRAM1_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2;
+    } else if (mpid == MPID_IRAM2) {
+        if(ptr < RAM2_START || ptr > RAM2_END){
+            errno = EFAULT;
+            return RTX_ERR;
+        }
+        freeList = iram2FreeList;
+        listLen = IRAM2_MAX_BLK_SIZE_LOG2 - MIN_BLK_SIZE_LOG2;
+    } else {
+        errno = EINVAL;
+        return RTX_ERR;  // Invalid memory pool ID
+    }
+    size_t freeBlockCount = 0;
+    for(U8 i = 0; i < listLen; ++i){
+        free_memory_block_t* currentBlk = freeList[i];
+        while(currentBlk != NULL){
+            printf("%x: %x\n", currentBlk, currentBlk->size);
+            currentBlk = currentBlk->next;
+            freeBlockCount++;
+        }
+    }
+    printf("%zu free memory block(s) found\n", freeBlockCount);
+
     return 0;
 }
  
