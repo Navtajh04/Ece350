@@ -68,11 +68,13 @@
 // The following offset macros needs to be modified if you modify
 // the positions of msp field in the TCB structure
 #define TCB_MSP_OFFSET  8       // TCB.msp offset 
+#define TCB_PSP_OFFSET  12      // TCB.psp offset
 
 typedef struct tcb {
     struct tcb *prev;         /**< prev tcb, not used in the starter code     */
     struct tcb *next;         /**< next tcb, not used in the starter code     */
     U32        *msp;          /**< kernel sp of the task, TCB_MSP_OFFSET = 8  */
+    U32        *psp;          /**< user sp of the task, TCB_PSP_OFFSET = 12   */
     U8          priv;         /**< = 0 unprivileged, =1 privileged,           */    
     U8          tid;          /**< task id                                    */
     U8          prio;         /**< scheduling priority                        */
