@@ -52,16 +52,24 @@
 //#include "k_task.h"
 #include "k_rtx.h"
 
+#define HIGHEST_PRIORITY_INDEX 0
+#define MEDIUM_PRIORITY_INDEX 1
+#define LOW_PRIORITY_INDEX 2
+#define LOWEST_PRIORITY_INDEX 3
+
+#define MSP_STORED_OFFSET 14
+
 /*
  *==========================================================================
  *                            GLOBAL VARIABLES
  *==========================================================================
  */
 
-TCB             *gp_current_task = NULL;    // the current RUNNING task
-TCB             g_tcbs[MAX_TASKS];          // an array of TCBs
-//TASK_INIT       g_null_task_info;           // The null task info
-U32             g_num_active_tasks = 0;     // number of non-dormant tasks
+TCB             *gp_current_task = NULL;            // the current RUNNING task
+TCB             g_tcbs[MAX_TASKS];                  // an array of TCBs
+//TASK_INIT       g_null_task_info;                 // The null task info
+U32             g_num_active_tasks = 0;             // number of non-dormant tasks
+tsk_ready_queue_t readyQueues[LOWEST - HIGH + 1];   // ready queues for each priority
 
 /*---------------------------------------------------------------------------
 The memory map of the OS image may look like the following:
@@ -419,8 +427,47 @@ int k_tsk_create(task_t *task, void (*task_entry)(void), U8 prio, U32 stack_size
     printf("k_tsk_create: entering...\n\r");
     printf("task = 0x%x, task_entry = 0x%x, prio=%d, stack_size = %d\n\r", task, task_entry, prio, stack_size);
 #endif /* DEBUG_0 */
-    return RTX_OK;
+    if(prio > LOWEST || prio < HIGH){
+        errno = EINVAL;
+        return RTX_ERR;
+    }
+    if(g_num_active_tasks >= MAX_TASKS){
+        errno = EAGAIN;
+    }
+    // if the requested stack size is less than the minimum, set it to the minimum
+    if(stack_size < PROC_STACK_SIZE){
+        g_tcbs[g_num_active_tasks].stackSize = PROC_STACK_SIZE
+    } else {
+        g_tcbs[g_num_active_tasks].stackSize = stack_size;
+    }
 
+    g_tcbs[g_num_active_tasks].pspBase = (U32) k_mpool_alloc(MPID_IRAM2, g_tcbs[g_num_active_tasks].stackSize);
+    if(g_tcbs[g_num_active_tasks].pspBase == NULL){
+        errno = ENOMEM;
+        return RTX_ERR;
+    }
+
+    g_tcbs[g_num_active_tasks].prio = prio;
+    g_tcbs[g_num_active_tasks].state = READY;
+    g_tcbs[g_num_active_tasks].tid = g_num_active_tasks;
+    g_tcbs[g_num_active_tasks].priv = UNPRIVILEGED;
+    g_tcbs[g_num_active_tasks].msp = g_k_stacks[g_num_active_tasks][0];
+    g_tcbs[g_num_active_tasks].ptask = task_entry;
+
+    *(--g_tcbs[g_num_active_tasks].msp) = g_tcbs[g_num_active_tasks].ptask; // push PC onto stack
+    *(--g_tcbs[g_num_active_tasks].msp) = 0; // push LR with an arbitrary value
+    g_tcbs[g_num_active_tasks].msp -= 8; // Skip some of the registers
+    *(--g_tcbs[g_num_active_tasks].msp) = g_tcbs[g_num_active_tasks].pspBase; // save the PSP to R5
+    *(--g_tcbs[g_num_active_tasks].msp) = 1 << 1; // set bit[1] of the CONTROL to 1 since this is unprivileged
+
+    // add the task to the ready queue
+    k_push_back_ready_queue(&readyQueues[prio], &g_tcbs[g_num_active_tasks]);
+
+    g_num_active_tasks++; // increment the total number of active tasks
+
+    k_tsk_run_new();
+    
+    return RTX_OK;
 }
 
 void k_tsk_exit(void) 
@@ -509,6 +556,22 @@ int k_rt_tsk_get(task_t tid, TIMEVAL *buffer)
     buffer->usec = 0xEEFF;
     
     return RTX_OK;
+}
+
+static void k_push_back_ready_queue(tsk_ready_queue_t* queue, TCB *task) {
+    task->prev = queue->tail;
+    task->next = NULL;
+
+    // Update the tail pointer
+    if (queue->tail != NULL) {
+        queue->tail->next = task;
+    }
+    queue->tail = task;
+
+    // Update the head pointer if the list is empty
+    if (queue->head == NULL) {
+        queue->head = task;
+    }
 }
 /*
  *===========================================================================
