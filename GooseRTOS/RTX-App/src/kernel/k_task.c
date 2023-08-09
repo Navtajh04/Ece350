@@ -449,7 +449,7 @@ int k_tsk_create(task_t *task, void (*task_entry)(void), U8 prio, U32 stack_size
     g_tcbs[g_num_active_tasks].state = READY;
     g_tcbs[g_num_active_tasks].tid = g_num_active_tasks;
     g_tcbs[g_num_active_tasks].priv = UNPRIVILEGED;
-    g_tcbs[g_num_active_tasks].msp = g_k_stacks[g_num_active_tasks][0];
+    g_tcbs[g_num_active_tasks].msp = &g_k_stacks[g_num_active_tasks][0];
     g_tcbs[g_num_active_tasks].ptask = task_entry;
 
     *(--g_tcbs[g_num_active_tasks].msp) = g_tcbs[g_num_active_tasks].ptask; // push PC onto stack
@@ -463,6 +463,8 @@ int k_tsk_create(task_t *task, void (*task_entry)(void), U8 prio, U32 stack_size
 
     g_num_active_tasks++; // increment the total number of active tasks
 
+    *task = g_num_active_tasks;
+
     k_tsk_run_new();
 
     return RTX_OK;
@@ -474,6 +476,14 @@ void k_tsk_exit(void)
     printf("k_tsk_exit: entering...\n\r");
 #endif /* DEBUG_0 */
     return;
+
+    gp_current_task->state = DORMANT;
+
+    k_mpool_dealloc(MPID_IRAM2, gp_current_task->pspBase);
+
+    g_num_active_tasks--;
+    
+    k_tsk_run_new();
 }
 
 int k_tsk_set_prio(task_t task_id, U8 prio) 
@@ -555,6 +565,7 @@ int k_rt_tsk_get(task_t tid, TIMEVAL *buffer)
     
     return RTX_OK;
 }
+
 
 static void k_push_back_ready_queue(tsk_ready_queue_t* queue, TCB *task) {
     task->prev = queue->tail;
