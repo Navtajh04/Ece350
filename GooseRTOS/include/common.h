@@ -134,6 +134,10 @@
 #define BLK_RECV            4       /* blocked on an empty emailbox on receive */
 #define SUSPENDED           5       /* Suspended task */
 
+/* Task Privileges */
+#define UNPRIVILEGED        0       /* Task is unprivileged */
+#define PRIVILEGED          1       /* Task is privileged */
+
 /* Message Passing Macros */
 /* Message Types */
 #define DEFAULT             0       /* a general purpose message */

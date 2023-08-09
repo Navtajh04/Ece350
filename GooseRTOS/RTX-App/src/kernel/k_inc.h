@@ -67,18 +67,20 @@
  */
 // The following offset macros needs to be modified if you modify
 // the positions of msp field in the TCB structure
-#define TCB_MSP_OFFSET  8       // TCB.msp offset 
-#define TCB_PSP_OFFSET  12      // TCB.psp offset
+#define TCB_MSP_OFFSET  0       // TCB.msp offset 
 
 typedef struct tcb {
-    struct tcb *prev;         /**< prev tcb, not used in the starter code     */
-    struct tcb *next;         /**< next tcb, not used in the starter code     */
-    U32        *msp;          /**< kernel sp of the task, TCB_MSP_OFFSET = 8  */
-    U32        *psp;          /**< user sp of the task, TCB_PSP_OFFSET = 12   */
+    U32        *msp;          /**< kernel sp of the task, TCB_MSP_OFFSET = 0  */
+    U32        *pspBase;      /**< base of user sp of the task                */
+    task_t      tid           /**< task ID                                    */
+    U32         stackSize     /**< size of the user stack for the task        */
+    void        (*ptask)();   /**< task entry address                         */
     U8          priv;         /**< = 0 unprivileged, =1 privileged,           */    
     U8          tid;          /**< task id                                    */
     U8          prio;         /**< scheduling priority                        */
     U8          state;        /**< task state                                 */
+    struct tcb *prev;         /**< prev tcb, not used in the starter code     */
+    struct tcb *next;         /**< next tcb, not used in the starter code     */
 } TCB;
 
 typedef struct free_memory_block_t {
@@ -87,6 +89,11 @@ typedef struct free_memory_block_t {
     struct free_memory_block_t* prev;
     struct free_memory_block_t* next;
 } free_memory_block_t;
+
+typedef struct tsk_ready_queue_t {
+    TCB *head;
+    TCB *tail;
+} tsk_ready_queue_t;
 
 /*
  *===========================================================================
