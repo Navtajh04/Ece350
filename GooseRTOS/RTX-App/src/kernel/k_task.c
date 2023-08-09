@@ -57,8 +57,6 @@
 #define LOW_PRIORITY_INDEX 2
 #define LOWEST_PRIORITY_INDEX 3
 
-#define MSP_STORED_OFFSET 14
-
 /*
  *==========================================================================
  *                            GLOBAL VARIABLES
@@ -466,7 +464,7 @@ int k_tsk_create(task_t *task, void (*task_entry)(void), U8 prio, U32 stack_size
     g_num_active_tasks++; // increment the total number of active tasks
 
     k_tsk_run_new();
-    
+
     return RTX_OK;
 }
 
