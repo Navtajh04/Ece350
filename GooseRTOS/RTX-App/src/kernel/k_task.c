@@ -475,7 +475,6 @@ void k_tsk_exit(void)
 #ifdef DEBUG_0
     printf("k_tsk_exit: entering...\n\r");
 #endif /* DEBUG_0 */
-    return;
 
     gp_current_task->state = DORMANT;
 
