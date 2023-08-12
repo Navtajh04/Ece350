@@ -136,10 +136,21 @@ The memory map of the OS image may look like the following:
 
 TCB *scheduler(void)
 {
-    /* *****MODIFY THIS FUNCTION ***** */
-    task_t tid = gp_current_task->tid;
-    return &g_tcbs[(++tid)%g_num_active_tasks];
+    uint8_t highestPriorityReady = HIGHEST_PRIORITY_INDEX;
+    // Figure out what the highest priority level is that has tasks ready
+    while(highestPriorityReady <= LOWEST_PRIORITY_INDEX && readyQueues[highestPriorityReady].head == NULL){
+        highestPriorityReady++; 
+    }
+    if(highestPriorityReady > LOWEST_PRIORITY_INDEX){
+        return NULL; // ready queues are empty
+    }
+    TCB *taskToRun = readyQueues[highestPriorityReady].head;
+    readyQueues[highestPriorityReady].head = readyQueues.head->next;
+    readyQueues[highestPriorityReady].head->prev = NULL;
 
+    taskToRun->next = NULL;
+    taskToRun->state = RUNNING;
+    return taskToRun;
 }
 
 /**
