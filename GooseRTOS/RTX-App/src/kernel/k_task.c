@@ -472,9 +472,9 @@ int k_tsk_create(task_t *task, void (*task_entry)(void), U8 prio, U32 stack_size
     // add the task to the ready queue
     k_push_back_ready_queue(&readyQueues[prio], &g_tcbs[g_num_active_tasks]);
 
-    g_num_active_tasks++; // increment the total number of active tasks
-
     *task = g_num_active_tasks;
+    
+    g_num_active_tasks++; // increment the total number of active tasks
 
     k_tsk_run_new();
 
