@@ -507,6 +507,47 @@ int k_tsk_set_prio(task_t task_id, U8 prio)
     printf("k_tsk_set_prio: entering...\n\r");
     printf("task_id = %d, prio = %d.\n\r", task_id, prio);
 #endif /* DEBUG_0 */
+    if(prio > HIGH || prio < LOWEST){
+        errno = EINVAL;
+        return RTX_ERR;
+    }
+    if(task_id <= 0 || task_id >= MAX_TASKS){
+        errno = EINVAL;
+        return RTX_ERR;
+    }
+    if(g_tcbs[task_id].state == DORMANT){
+        return RTX_OK;
+    }
+    if(g_tcbs[task_id].prio == prio){
+        return RTX_OK;
+    }
+    // Check if the calling task is unprivileged and trying to change the priority
+    // of a privileged task
+    if(gp_current_task->priv < g_tcbs[task_id].priv){
+        errno = EPERM;
+        return RTX_ERR;
+    }
+    // Remove the task from its old ready queue
+    if(g_tcbs[task_id].prev != NULL){
+        g_tcbs[task_id].prev->next = g_tcbs[task_id].next;
+    } else {
+        // this task is the head of the linked list
+        readyQueues[g_tcbs[task_id].prio - PRIORITY_LEVEL_TO_INDEX_OFFSET].head = g_tcbs[task_id].next;
+    }
+    if(g_tcbs[task_id].next != NULL){
+        g_tcbs[task_id].next->prev = g_tcbs[task_id].prev;
+    } else {
+        // this task is the tail of the list
+        readyQueues[g_tcbs[task_id].prio - PRIORITY_LEVEL_TO_INDEX_OFFSET].tail = g_tcbs[task_id].prev;
+    }
+    // add task to the back of its new priority level ready queue
+    k_push_back_ready_queue(readyQueues[prio - PRIORITY_LEVEL_TO_INDEX_OFFSET], g_tcbs[task_id]);
+
+    if(prio > gp_current_task->prio){
+        // schedule the adjusted task to run
+        return k_tsk_run_new();
+    }
+
     return RTX_OK;    
 }
 
