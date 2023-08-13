@@ -562,22 +562,25 @@ int k_tsk_get(task_t tid, RTX_TASK_INFO *buffer)
     printf("tid = %d, buffer = 0x%x.\n\r", tid, buffer);
 #endif /* DEBUG_0 */    
     if (buffer == NULL) {
+        errno = EFAULT;
         return RTX_ERR;
     }
-    /* The code fills the buffer with some fake task information. 
-       You should fill the buffer with correct information    */
+    if(tid >= MAX_TASKS){
+        errno = EINVAL;
+        return RTX_ERR;
+    }
     
     buffer->tid           = tid;
-    buffer->prio          = 99;
-    buffer->u_stack_size  = 0x8000;
-    buffer->priv          = 3;
-    buffer->ptask         = 0x0;
-    buffer->k_sp          = 0xDEADBEEF;
-    buffer->k_sp_base     = 0xDEADBEEF;
-    buffer->k_stack_size  = 0x0;
-    buffer->state         = 0xFF;
-    buffer->u_sp          = 0xDEAD9999;
-    buffer->u_sp_base     = 0xDEADAAAA;
+    buffer->prio          = g_tcbs[tid].prio;
+    buffer->u_stack_size  = g_tcbs[tid].stackSize;
+    buffer->priv          = g_tcbs[tid].priv;
+    buffer->ptask         = g_tcbs[tid].ptask;
+    buffer->k_sp          = __get_MSP();
+    buffer->k_sp_base     = &g_k_stacks[tid][0];
+    buffer->k_stack_size  = KERN_STACK_SIZE;
+    buffer->state         = g_tcbs[tid].state;
+    buffer->u_sp          = __get_PSP();
+    buffer->u_sp_base     = g_tcbs[tid].pspBase;
     return RTX_OK;     
 }
 
