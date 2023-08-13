@@ -72,11 +72,10 @@
 typedef struct tcb {
     U32        *msp;          /**< kernel sp of the task, TCB_MSP_OFFSET = 0  */
     U32        *pspBase;      /**< base of user sp of the task                */
-    task_t      tid           /**< task ID                                    */
-    U32         stackSize     /**< size of the user stack for the task        */
+    task_t      tid;          /**< task ID                                    */
+    U32         stackSize;    /**< size of the user stack for the task        */
     void        (*ptask)();   /**< task entry address                         */
     U8          priv;         /**< = 0 unprivileged, =1 privileged,           */    
-    U8          tid;          /**< task id                                    */
     U8          prio;         /**< scheduling priority                        */
     U8          state;        /**< task state                                 */
     struct tcb *prev;         /**< prev tcb, not used in the starter code     */
