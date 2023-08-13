@@ -57,6 +57,7 @@
 #define LOW_PRIORITY_INDEX 2
 #define LOWEST_PRIORITY_INDEX 3
 
+#define PRIORITY_LEVEL_TO_INDEX_OFFSET 0x80
 /*
  *==========================================================================
  *                            GLOBAL VARIABLES
@@ -144,13 +145,9 @@ TCB *scheduler(void)
     if(highestPriorityReady > LOWEST_PRIORITY_INDEX){
         return NULL; // ready queues are empty
     }
-    TCB *taskToRun = readyQueues[highestPriorityReady].head;
-    readyQueues[highestPriorityReady].head = readyQueues.head->next;
-    readyQueues[highestPriorityReady].head->prev = NULL;
 
-    taskToRun->next = NULL;
-    taskToRun->state = RUNNING;
-    return taskToRun;
+    readyQueues[highestPriorityReady].head->state = RUNNING;
+    return readyQueues[highestPriorityReady].head;
 }
 
 /**
@@ -412,6 +409,14 @@ int k_tsk_run_new(void)
  *****************************************************************************/
 int k_tsk_yield(void)
 {
+    readyQueues[gp_current_task->prio - PRIORITY_LEVEL_TO_INDEX_OFFSET].head = gp_current_task->next;
+
+    if(readyQueues[gp_current_task->prio - PRIORITY_LEVEL_TO_INDEX_OFFSET].head != NULL){
+        gp_current_task->next->prev = NULL;
+    }
+
+    k_push_back_ready_queue(readyQueues[gp_current_task->prio - PRIORITY_LEVEL_TO_INDEX_OFFSET], gp_current_task);
+    
     return k_tsk_run_new();
 }
 
