@@ -588,7 +588,22 @@ int k_tsk_ls(task_t *buf, size_t count){
 #ifdef DEBUG_0
     printf("k_tsk_ls: buf=0x%x, count=%u\r\n", buf, count);
 #endif /* DEBUG_0 */
-    return 0;
+    if(buf == NULL){
+        errno = EFAULT;
+        return RTX_ERR;
+    }
+    if(count == 0){
+        errno = EFAULT;
+        return RTX_ERR;
+    }
+    size_t numActiveTasks = 0;
+    for(size_t i = 0; (i < MAX_TASKS) && (numActiveTasks < count); ++i){
+        if(g_tcbs[i].state != DORMANT){
+            buf[numActiveTasks] = g_tcbs[i].tid;
+            numActiveTasks++;
+        }
+    }
+    return numActiveTasks;
 }
 
 int k_rt_tsk_set(TIMEVAL *p_tv)
